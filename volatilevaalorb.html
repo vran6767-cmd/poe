@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PoE Volatile Calculator (Exact Math)</title>
+    <style>
+        :root { --primary: #af60ff; --bg: #0f0f0f; --panel: #1a1a1a; --text: #e0e0e0; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 20px; }
+        .container { background-color: var(--panel); border: 1px solid #333; padding: 1.5rem; border-radius: 8px; width: 100%; max-width: 850px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { color: var(--primary); border-bottom: 1px solid #333; padding-bottom: 10px; margin-top: 0; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444; color: white; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 14px; background: #6200ea; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        button:hover { background: #7c4dff; }
+        .stats-summary { background: #222; padding: 10px; border-radius: 4px; margin: 15px 0; font-size: 0.9rem; border-left: 4px solid var(--primary); display: flex; justify-content: space-around; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-variant-numeric: tabular-nums; }
+        th { text-align: left; color: #888; font-size: 0.7rem; border-bottom: 1px solid #333; padding: 12px 8px; text-transform: uppercase; letter-spacing: 1px; }
+        td { padding: 10px 8px; border-bottom: 1px solid #222; }
+        .val-col { font-weight: bold; color: #ffd700; font-size: 1.1rem; }
+        .fav-col { color: #888; font-size: 0.85rem; }
+        .cum-up { color: #00bcd4; } /* Blue for Up */
+        .cum-down { color: #ff9800; font-weight: 500; } /* Orange for Down */
+        .prob-col { color: #4caf50; font-weight: bold; }
+        tr:hover { background: #252525; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Volatile Vaal Orb Calculator</h2>
+    <div class="grid">
+        <div><label>Min Roll (Divine)</label><input type="number" id="minRoll" value="65"></div>
+        <div><label>Max Roll (Divine)</label><input type="number" id="maxRoll" value="75"></div>
+        <div><label>Multiplier (Catalyst)</label><input type="number" id="quality" value="1.0" step="0.01"></div>
+        <div><label>Modifier Type</label><select id="scalable"><option value="true">Scalable</option><option value="false">Unscalable</option></select></div>
+    </div>
+    <button onclick="calculate()">Analyze Probabilities</button>
+    <div id="results"></div>
+</div>
+
+<script>
+function calculate() {
+    const min = parseInt(document.getElementById('minRoll').value);
+    const max = parseInt(document.getElementById('maxRoll').value);
+    const qual = parseFloat(document.getElementById('quality').value);
+    const isScalable = document.getElementById('scalable').value === "true";
+    const resultsDiv = document.getElementById('results');
+
+    const favorableCases = {};
+    const divRange = max - min + 1;
+    const multiplierSteps = 45; 
+    const totalSurvivalPaths = divRange * multiplierSteps;
+
+    // 1. Calculate frequencies
+    for (let r = min; r <= max; r++) {
+        for (let m = 78; m <= 122; m++) {
+            let finalVal;
+            if (isScalable) {
+                let scaled = Math.round((r * m) / 100 + 0.0000000001);
+                finalVal = Math.floor((scaled * qual) + 0.0000000001);
+            } else {
+                finalVal = r;
+            }
+            favorableCases[finalVal] = (favorableCases[finalVal] || 0) + 1;
+        }
+    }
+
+    const sorted = Object.keys(favorableCases).sort((a, b) => Number(a) - Number(b));
+    
+    let html = `<div class="stats-summary">
+        <span>Paths: <strong>${totalSurvivalPaths}</strong></span>
+        <span>Survival: <strong>50.00%</strong></span>
+        <span style="color:#ff5252">Poof: <strong>50.00%</strong></span>
+    </div>`;
+    
+    html += `<table><thead><tr>
+        <th>Value</th>
+        <th>Cases</th>
+        <th>Prob.</th>
+        <th>Cum. (Bottom-Up)</th>
+        <th>Cum. (Top-Down)</th>
+    </tr></thead><tbody>`;
+
+    let runningSumBottom = 0;
+    const totalPossible = totalSurvivalPaths;
+
+    // Pre-calculate total for Top-Down
+    const countsArray = sorted.map(v => favorableCases[v]);
+    const totalCount = countsArray.reduce((a, b) => a + b, 0);
+
+    sorted.forEach((v, idx) => {
+        const hits = favorableCases[v];
+        runningSumBottom += hits;
+        
+        // Sum of all hits from this index to the end
+        const runningSumTop = countsArray.slice(idx).reduce((a, b) => a + b, 0);
+
+        // All probabilities include the 50% global survival modifier
+        const prob = (hits / totalPossible) * 0.5;
+        const cumBottom = (runningSumBottom / totalPossible) * 0.5;
+        const cumTop = (runningSumTop / totalPossible) * 0.5;
+        
+        html += `<tr>
+            <td class="val-col">${v}</td>
+            <td class="fav-col">${hits}</td>
+            <td class="prob-col">${(prob * 100).toFixed(2)}%</td>
+            <td class="cum-up">≤ ${v}: ${(cumBottom * 100).toFixed(2)}%</td>
+            <td class="cum-down">≥ ${v}: ${(cumTop * 100).toFixed(2)}%</td>
+        </tr>`;
+    });
+
+    html += `</tbody></table>`;
+    resultsDiv.innerHTML = html;
+}
+</script>
+</body>
+</html>
