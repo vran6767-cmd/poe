@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delve Scaling Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            width: 100%;
+            max-width: 1200px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .upload-zone {
+            background: #fff;
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 2px dashed #cbd5e1;
+            display: inline-block;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .upload-zone input {
+            font-size: 14px;
+            color: #475569;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 25px;
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 20px;
+        }
+        .chart-container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid #eef2f5;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        h2 {
+            font-size: 18px;
+            color: #475569;
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-weight: 600;
+            border-left: 4px solid #3b82f6;
+            padding-left: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Delve Metric Dashboard</h1>
+        <div class="subtitle">Dynamic multi-metric charting tool</div>
+        
+        <div class="upload-zone">
+            <label style="font-weight: 600; margin-right: 10px; color: #334155;">Select CSV Data:</label>
+            <input type="file" id="csvFileInput" accept=".csv">
+        </div>
+    </header>
+
+    <div class="dashboard-grid">
+        <div class="chart-container">
+            <h2>Monster Damage Scaling</h2>
+            <canvas id="damageChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2>Monster Life Scaling</h2>
+            <canvas id="lifeChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2>Monster Zone Level</h2>
+            <canvas id="levelChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2>Sulphite Economics (Deposit vs. Cost)</h2>
+            <canvas id="sulphiteChart"></canvas>
+        </div>
+
+        <div class="chart-container full-width">
+            <h2>Darkness Resistance Penalty</h2>
+            <canvas id="darknessChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Store instances globally so we can destroy old ones if a file is re-uploaded
+        let chartInstances = {};
+
+        // Configuration helper for base metrics
+        const getBaseOptions = (yTitle) => ({
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { display: false } },
+            scales: {
+                x: {
+                    type: 'linear',
+                    title: { display: true, text: 'Delve Depth', color: '#64748b' },
+                    grid: { color: '#f1f5f9' },
+                    ticks: { color: '#64748b' }
+                },
+                y: {
+                    title: { display: true, text: yTitle, color: '#64748b' },
+                    grid: { color: '#f1f5f9' },
+                    ticks: { color: '#64748b' }
+                }
+            },
+            elements: {
+                point: { radius: 3, hoverRadius: 6 },
+                line: { tension: 0.1 }
+            }
+        });
+
+        // Safe cleanup functionality to prevent canvas caching errors
+        function destroyExistingCharts() {
+            Object.keys(chartInstances).forEach(key => {
+                if (chartInstances[key]) {
+                    chartInstances[key].destroy();
+                }
+            });
+        }
+
+        // Listen for user file loading interaction
+        document.getElementById('csvFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    const data = results.data;
+                    
+                    // Wipe any existing rendered elements before mapping fresh content
+                    destroyExistingCharts();
+
+                    // Structure generator mapper
+                    const parseMetric = (columnName) => data.map(row => ({ x: row['Depth'], y: row[columnName] }));
+
+                    // 1. Monster Damage Chart
+                    chartInstances.damage = new Chart(document.getElementById('damageChart'), {
+                        type: 'line',
+                        data: { datasets: [{ data: parseMetric('Monst dmg'), borderColor: '#3b82f6', borderWidth: 2.5, fill: false }] },
+                        options: getBaseOptions('Damage Modifier')
+                    });
+
+                    // 2. Monster Life Chart
+                    chartInstances.life = new Chart(document.getElementById('lifeChart'), {
+                        type: 'line',
+                        data: { datasets: [{ data: parseMetric('Monst life'), borderColor: '#ef4444', borderWidth: 2.5, fill: false }] },
+                        options: getBaseOptions('Life Modifier')
+                    });
+
+                    // 3. Monster Level Chart
+                    chartInstances.level = new Chart(document.getElementById('levelChart'), {
+                        type: 'line',
+                        data: { datasets: [{ data: parseMetric('Monster level'), borderColor: '#10b981', borderWidth: 2.5, fill: false }] },
+                        options: getBaseOptions('Zone Level')
+                    });
+
+                    // 4. Sulphite Balance Chart
+                    const sulphiteOpts = getBaseOptions('Sulphite Units');
+                    sulphiteOpts.plugins.legend = { display: true, position: 'top' };
+                    
+                    chartInstances.sulphite = new Chart(document.getElementById('sulphiteChart'), {
+                        type: 'line',
+                        data: {
+                            datasets: [
+                                { label: 'Deposit Yield', data: parseMetric('Sulphite deposit'), borderColor: '#eab308', borderWidth: 2, fill: false },
+                                { label: 'Travel Cost', data: parseMetric('sulphite cost'), borderColor: '#f97316', borderWidth: 2, fill: false }
+                            ]
+                        },
+                        options: sulphiteOpts
+                    });
+
+                    // 5. Darkness Resistance Chart
+                    chartInstances.darkness = new Chart(document.getElementById('darknessChart'), {
+                        type: 'line',
+                        data: { datasets: [{ data: parseMetric('Darkness res'), borderColor: '#6366f1', borderWidth: 2.5, fill: false }] },
+                        options: getBaseOptions('Resistance Mitigation (%)')
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
