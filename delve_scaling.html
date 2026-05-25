@@ -33,25 +33,12 @@
             margin-bottom: 20px;
             font-size: 14px;
         }
-        .upload-zone {
-            background: #fff;
-            padding: 15px 25px;
-            border-radius: 8px;
-            border: 2px dashed #cbd5e1;
-            display: inline-block;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-        .upload-zone input {
-            font-size: 14px;
-            color: #475569;
-        }
         .dashboard-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
             gap: 25px;
             width: 100%;
             max-width: 1200px;
-            margin-top: 20px;
         }
         .chart-container {
             background: #ffffff;
@@ -72,21 +59,23 @@
             border-left: 4px solid #3b82f6;
             padding-left: 10px;
         }
+        #loading {
+            font-size: 18px;
+            color: #64748b;
+            margin-top: 50px;
+        }
     </style>
 </head>
 <body>
 
     <header>
         <h1>Delve Metric Dashboard</h1>
-        <div class="subtitle">Dynamic multi-metric charting tool</div>
-        
-        <div class="upload-zone">
-            <label style="font-weight: 600; margin-right: 10px; color: #334155;">Select CSV Data:</label>
-            <input type="file" id="csvFileInput" accept=".csv">
-        </div>
+        <div class="subtitle">Live server data pulled from Delve_Scaling.csv</div>
     </header>
 
-    <div class="dashboard-grid">
+    <div id="loading">Loading datasets and rendering charts...</div>
+
+    <div class="dashboard-grid" id="dashboard" style="display: none;">
         <div class="chart-container">
             <h2>Monster Damage Scaling</h2>
             <canvas id="damageChart"></canvas>
@@ -114,10 +103,7 @@
     </div>
 
     <script>
-        // Store instances globally so we can destroy old ones if a file is re-uploaded
-        let chartInstances = {};
-
-        // Configuration helper for base metrics
+        // Configuration helper for consistent chart styling
         const getBaseOptions = (yTitle) => ({
             responsive: true,
             interaction: { mode: 'index', intersect: false },
@@ -141,49 +127,40 @@
             }
         });
 
-        // Safe cleanup functionality to prevent canvas caching errors
-        function destroyExistingCharts() {
-            Object.keys(chartInstances).forEach(key => {
-                if (chartInstances[key]) {
-                    chartInstances[key].destroy();
-                }
-            });
-        }
-
-        // Listen for user file loading interaction
-        document.getElementById('csvFileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            Papa.parse(file, {
+        // Automatically fetch and parse the CSV file when the window finishes loading
+        window.addEventListener('DOMContentLoaded', () => {
+            // "Delve_Scaling.csv" matches the file name in the same web directory
+            Papa.parse("Delve_Scaling.csv", {
+                download: true,       // Tells PapaParse to grab the file over HTTP/HTTPS
                 header: true,
                 dynamicTyping: true,
                 skipEmptyLines: true,
                 complete: function(results) {
                     const data = results.data;
                     
-                    // Wipe any existing rendered elements before mapping fresh content
-                    destroyExistingCharts();
+                    // Hide loading indicator, show dashboard grid
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('dashboard').style.display = 'grid';
 
                     // Structure generator mapper
                     const parseMetric = (columnName) => data.map(row => ({ x: row['Depth'], y: row[columnName] }));
 
                     // 1. Monster Damage Chart
-                    chartInstances.damage = new Chart(document.getElementById('damageChart'), {
+                    new Chart(document.getElementById('damageChart'), {
                         type: 'line',
                         data: { datasets: [{ data: parseMetric('Monst dmg'), borderColor: '#3b82f6', borderWidth: 2.5, fill: false }] },
                         options: getBaseOptions('Damage Modifier')
                     });
 
                     // 2. Monster Life Chart
-                    chartInstances.life = new Chart(document.getElementById('lifeChart'), {
+                    new Chart(document.getElementById('lifeChart'), {
                         type: 'line',
                         data: { datasets: [{ data: parseMetric('Monst life'), borderColor: '#ef4444', borderWidth: 2.5, fill: false }] },
                         options: getBaseOptions('Life Modifier')
                     });
 
                     // 3. Monster Level Chart
-                    chartInstances.level = new Chart(document.getElementById('levelChart'), {
+                    new Chart(document.getElementById('levelChart'), {
                         type: 'line',
                         data: { datasets: [{ data: parseMetric('Monster level'), borderColor: '#10b981', borderWidth: 2.5, fill: false }] },
                         options: getBaseOptions('Zone Level')
@@ -193,7 +170,7 @@
                     const sulphiteOpts = getBaseOptions('Sulphite Units');
                     sulphiteOpts.plugins.legend = { display: true, position: 'top' };
                     
-                    chartInstances.sulphite = new Chart(document.getElementById('sulphiteChart'), {
+                    new Chart(document.getElementById('sulphiteChart'), {
                         type: 'line',
                         data: {
                             datasets: [
@@ -205,11 +182,15 @@
                     });
 
                     // 5. Darkness Resistance Chart
-                    chartInstances.darkness = new Chart(document.getElementById('darknessChart'), {
+                    new Chart(document.getElementById('darknessChart'), {
                         type: 'line',
                         data: { datasets: [{ data: parseMetric('Darkness res'), borderColor: '#6366f1', borderWidth: 2.5, fill: false }] },
                         options: getBaseOptions('Resistance Mitigation (%)')
                     });
+                },
+                error: function(err) {
+                    document.getElementById('loading').textContent = "Error loading 'Delve_Scaling.csv'. Ensure the file name matches exactly and is placed in the same web directory.";
+                    console.error(err);
                 }
             });
         });
