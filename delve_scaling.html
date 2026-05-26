@@ -73,7 +73,6 @@
             text-decoration: none;
             font-weight: 500;
             transition: color 0.2s ease, text-decoration 0.2s ease;
-            margin: 20px;
         }
         .source-link:hover {
             color: #1d4ed8;
@@ -84,11 +83,9 @@
 <body>
 
     <header>
-        <h1>Delve Metric Dashboard</h1>
-        <div class="subtitle">Live server data pulled from Delve_Scaling.csv</div>
+        <h1><a class="source-link" href="https://poedb.tw/us/Delve_league#DelveLevelScaling" target="_blank" rel="noopener noreferrer">PoEDB Delve Level Scaling ↗</a></h1>
     </header>
 
-    <div><a class="source-link" href="https://poedb.tw/us/Delve_league#DelveLevelScaling" target="_blank" rel="noopener noreferrer">PoEDB Delve Level Scaling ↗</a></div>
     <div id="loading">Loading datasets and rendering charts...</div>
 
     <div class="dashboard-grid" id="dashboard" style="display: none;">
