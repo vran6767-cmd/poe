@@ -108,41 +108,57 @@
     </div>
 
     <script>
-        // 1. Add your screenshot filenames here. 
-        // If they are in a subfolder, include the path (e.g., "images/screenshot1.png")
-        const screenshots = [
-            "feared_in_ritual_vessel.png",
-            "Awakeners_Desolatation.png"
-        ];
+    // 1. Configure your GitHub details
+    const UTILITY = {
+        username: "YOUR_GITHUB_USERNAME",  // Change to your GitHub username
+        repo: "YOUR_REPO_NAME",            // Change to your repository name
+        folderPath: ""                      // Leave empty "" if images are in the root folder
+    };
 
-        const fileListEl = document.getElementById('file-list');
-        const displayImg = document.getElementById('screenshot-display');
-        const placeholder = document.getElementById('placeholder');
+    const fileListEl = document.getElementById('file-list');
+    const displayImg = document.getElementById('screenshot-display');
+    const placeholder = document.getElementById('placeholder');
 
-        // 2. Dynamically generate the list items
-        screenshots.forEach((filename) => {
-            const li = document.createElement('li');
-            
-            // Clean up the display name (optional: removes the .png extension for a cleaner look)
-            li.textContent = filename.replace('.png', '');
-            li.title = filename; // Shows full name on hover
+    // 2. Fetch the file list automatically from GitHub's API
+    const apiUrl = `https://api.github.com/repos/${UTILITY.username}/${UTILITY.repo}/contents/${UTILITY.folderPath}`;
 
-            // 3. Handle click event to display image
-            li.addEventListener('click', () => {
-                // Remove active class from previously selected item
-                document.querySelectorAll('#file-list li').forEach(el => el.classList.remove('active'));
-                
-                // Add active class to clicked item
-                li.classList.add('active');
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) throw new Error("Failed to fetch repository files.");
+            return response.json();
+        })
+        .then(files => {
+            // Filter out only PNG images
+            const pngFiles = files.filter(file => file.name.toLowerCase().endsWith('.png'));
 
-                // Update image source and visibility
-                displayImg.src = filename;
-                displayImg.style.display = 'block';
-                placeholder.style.display = 'none';
+            if (pngFiles.length === 0) {
+                placeholder.textContent = "No .png screenshots found in this repository.";
+                return;
+            }
+
+            // 3. Build the UI loop dynamically
+            pngFiles.forEach(file => {
+                const li = document.createElement('li');
+                li.textContent = file.name.replace('.png', '');
+                li.title = file.name;
+
+                li.addEventListener('click', () => {
+                    document.querySelectorAll('#file-list li').forEach(el => el.classList.remove('active'));
+                    li.classList.add('active');
+
+                    // Use the raw GitHub URL provided by the API to load the image safely
+                    displayImg.src = file.download_url;
+                    displayImg.style.display = 'block';
+                    placeholder.style.display = 'none';
+                });
+
+                fileListEl.appendChild(li);
             });
-
-            fileListEl.appendChild(li);
+        })
+        .catch(error => {
+            console.error(error);
+            placeholder.textContent = "Error loading screenshots. Check your GitHub repository settings.";
         });
-    </script>
+</script>
 </body>
 </html>
