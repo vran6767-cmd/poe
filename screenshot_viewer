@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screenshot Viewer</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --sidebar-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-color: #00adb5;
+            --hover-bg: #2a2a2a;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            height: 100vh;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+        }
+
+        /* Sidebar Styling */
+        #sidebar {
+            width: 300px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+        }
+
+        #sidebar h2 {
+            padding: 20px;
+            margin: 0;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #333;
+            color: var(--accent-color);
+        }
+
+        #file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        #file-list li {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid #262626;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: background 0.2s ease;
+        }
+
+        #file-list li:hover {
+            background-color: var(--hover-bg);
+        }
+
+        #file-list li.active {
+            background-color: var(--accent-color);
+            color: #fff;
+            font-weight: bold;
+        }
+
+        /* Viewer Area Styling */
+        #viewer {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background-color: var(--bg-color);
+            position: relative;
+        }
+
+        #viewer img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            border-radius: 4px;
+            display: none;
+        }
+
+        #placeholder {
+            font-size: 1.1rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>Screenshots</h2>
+        <ul id="file-list"></ul>
+    </div>
+
+    <div id="viewer">
+        <div id="placeholder">Select a screenshot from the sidebar to view it</div>
+        <img id="screenshot-display" src="" alt="Screenshot View">
+    </div>
+
+    <script>
+        // 1. Add your screenshot filenames here. 
+        // If they are in a subfolder, include the path (e.g., "images/screenshot1.png")
+        const screenshots = [
+            "feared_in_ritual_vessel.png",
+            "feared_in_ritual_vessel.png"
+        ];
+
+        const fileListEl = document.getElementById('file-list');
+        const displayImg = document.getElementById('screenshot-display');
+        const placeholder = document.getElementById('placeholder');
+
+        // 2. Dynamically generate the list items
+        screenshots.forEach((filename) => {
+            const li = document.createElement('li');
+            
+            // Clean up the display name (optional: removes the .png extension for a cleaner look)
+            li.textContent = filename.replace('.png', '');
+            li.title = filename; // Shows full name on hover
+
+            // 3. Handle click event to display image
+            li.addEventListener('click', () => {
+                // Remove active class from previously selected item
+                document.querySelectorAll('#file-list li').forEach(el => el.classList.remove('active'));
+                
+                // Add active class to clicked item
+                li.classList.add('active');
+
+                // Update image source and visibility
+                displayImg.src = filename;
+                displayImg.style.display = 'block';
+                placeholder.style.display = 'none';
+            });
+
+            fileListEl.appendChild(li);
+        });
+    </script>
+</body>
+</html>
